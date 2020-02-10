@@ -5,9 +5,62 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:fluttertest/model/ImageModel.dart';
+import 'package:fluttertest/model/NewsListItemModel.dart';
+import 'package:fluttertest/model/NewsModel.dart';
+import 'package:fluttertest/model/TabsModel.dart';
+import 'package:fluttertest/net/HttpNet.dart';
+import 'package:fluttertest/utils/ApiUtils.dart';
+import 'package:fluttertest/utils/MethodTyps.dart';
 import 'package:fluttertest/utils/Utils.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
-class PageOne extends StatelessWidget {
+class PageOne extends StatefulWidget {
+  State<StatefulWidget> createState() => new _PageOneState();
+}
+
+class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
+  TabController _mController;
+  List<Tab> _tabList = new List();
+  TabsModel _model;
+  int _pageIndex = 1;
+  int _tabId;
+  bool pullUp = true;
+
+  List<NewsListItemModel> allData = new List();
+
+  RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
+
+  @override
+  void initState() {
+    super.initState();
+    _getTabs();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _mController.dispose();
+  }
+
+  _getTabs() {
+    HttpNet().request(MethodTypes.GET, ApiUtils.getTabs, (str) {
+      _model = TabsModel.fromJson(str);
+      _tabList.clear();
+      _model.data.list.forEach((item) {
+        _tabList.add(new Tab(text: item.classname));
+      });
+      _mController = TabController(
+        length: _tabList.length,
+        vsync: this,
+      );
+      _tabId = _model?.data?.list[0].id;
+      _reflashWidget();
+      _getListData();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,8 +75,107 @@ class PageOne extends StatelessWidget {
           ),
           centerTitle: true,
           backgroundColor: const Color(0xff2e324e)),
-      body: new ListView.builder(itemCount: 10, itemBuilder: _buildItemList),
+      body: new Column(
+        children: <Widget>[
+          new Container(
+            padding: EdgeInsets.only(bottom: 5, top: 5),
+            height: 45,
+            child: _buildTabs(),
+          ),
+          Expanded(
+            child: _buildView(),
+          )
+        ],
+      ),
     );
+  }
+
+  Widget _buildView() {
+    if (_tabList.isNotEmpty) {
+      return TabBarView(
+        controller: _mController,
+        children: _tabList.map((item) {
+          return SmartRefresher(
+            enablePullDown: true,
+            enablePullUp: pullUp,
+            header: ClassicHeader(
+                refreshingText: "重新加载数据中",
+                releaseText: "松开时重新加载数据",
+                completeText: "数据加载完成",
+                idleText: "下拉加载新数据"),
+            controller: _refreshController,
+            onRefresh: _onRefresh,
+            onLoading: _onLoading,
+            child: new ListView.builder(
+                itemCount: allData.length, itemBuilder: _buildItemList),
+          );
+        }).toList(),
+      );
+    } else {
+      return new Container();
+    }
+  }
+
+  void _onRefresh() async {
+    _pageIndex = 1;
+    _getListData(clear: true);
+  }
+
+  void _onLoading() async {
+    _pageIndex++;
+    _getListData();
+  }
+
+  _getListData({bool clear = false}) {
+    HttpNet().request(
+        MethodTypes.GET, "${ApiUtils.getTabs}/$_tabId/post/$_pageIndex", (str) {
+      NewsModel model = NewsModel.fromJson(str);
+      if (clear) {
+        allData.clear();
+      }
+      if (model.data == null ||
+          model.data.list == null ||
+          model.data.list.isEmpty) {
+        pullUp = false;
+        Utils.showToast("没有更多数据了");
+      } else {
+        allData.addAll(model.data.list);
+      }
+      _reflashWidget();
+      _refreshController.refreshCompleted();
+      _refreshController.loadComplete();
+    });
+  }
+
+  Widget _buildTabs() {
+    if (_tabList != null && _tabList.isNotEmpty) {
+      return new TabBar(
+        isScrollable: true,
+        indicatorWeight: 5.0,
+        indicatorSize: TabBarIndicatorSize.label,
+        indicatorColor: Color(0xfff9e243),
+        controller: _mController,
+        labelColor: Colors.black,
+        unselectedLabelColor: Color(0xff9c9c9c),
+        tabs: _tabList.map((item) {
+          return Tab(
+            text: item.text,
+          );
+        }).toList(),
+        onTap: (index) {
+          _tabId = _model?.data?.list[index].id;
+          _pageIndex = 1;
+          pullUp = true;
+          _getListData(clear: true);
+        },
+      );
+    } else {
+      return new Container();
+    }
+  }
+
+  _reflashWidget() {
+    if (mounted) setState(() {});
   }
 
   Widget _buildItemList(BuildContext context, int index) {
@@ -36,18 +188,19 @@ class PageOne extends StatelessWidget {
               child: new Image(
                 width: 45,
                 height: 45,
-                image: new AssetImage(Utils.getImgPath("header_img")),
+                image: new NetworkImage(allData[index].user?.userpic),
+                fit: BoxFit.cover,
               ),
             ),
             title: new Text(
-              "Johnie Cornwall",
+              "${allData[index].user?.realname}",
               style: new TextStyle(
                   fontSize: 16,
                   color: const Color(0xff6f6f6f),
                   fontWeight: FontWeight.bold),
             ),
             subtitle: new Text(
-              "8 mins",
+              "${_getTime(allData[index]?.create_time)}",
               style: new TextStyle(color: Colors.black38, fontSize: 12),
             ),
             trailing: new Container(
@@ -68,8 +221,8 @@ class PageOne extends StatelessWidget {
           ),
           new Container(
             margin: EdgeInsets.all(15),
-            child: new Text(
-                "这是一段长长的文本，用于测试用例，至于界面布局成什么情况，我暂时不清楚，先以文字图片作为占位符再说。看看具体的效果，如果的话就如此显示了"),
+            alignment: Alignment.centerLeft,
+            child: new Text("${allData[index]?.content}"),
           ),
           _buildImgItem(index),
           new Divider(
@@ -80,7 +233,7 @@ class PageOne extends StatelessWidget {
             padding: EdgeInsets.only(bottom: 10),
             child: new Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: _buildRowItem(),
+              children: _buildRowItem(index),
             ),
           ),
           new Container(
@@ -92,14 +245,31 @@ class PageOne extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildRowItem() {
+  String _getTime(int time) {
+    var daynow = DateTime.fromMillisecondsSinceEpoch(time * 1000);
+    Duration chaf = DateTime.now().difference(daynow);
+    if (chaf.inDays != 0) {
+      if (chaf.inDays > 30) {
+        return "${daynow.year}-${daynow.month}-${daynow.day}";
+      } else
+        return "${chaf.inDays}天前";
+    } else if (chaf.inHours != 0) {
+      return "${chaf.inHours}时前";
+    } else if (chaf.inMinutes != 0) {
+      return "${chaf.inMinutes}分前";
+    } else if (chaf.inSeconds != 0) {
+      return "${chaf.inSeconds}刚刚";
+    }
+  }
+
+  List<Widget> _buildRowItem(int index) {
     List<Widget> all = new List();
     all.add(new Row(
       children: <Widget>[
         new Icon(Icons.apps),
         new Padding(
-          padding: EdgeInsets.only(left: 10),
-          child: new Text("Like"),
+          padding: EdgeInsets.only(left: 5),
+          child: new Text("${allData[index]?.ding_count} Like"),
         )
       ],
     ));
@@ -107,8 +277,8 @@ class PageOne extends StatelessWidget {
       children: <Widget>[
         new Icon(Icons.comment),
         new Padding(
-          padding: EdgeInsets.only(left: 10),
-          child: new Text("Comment"),
+          padding: EdgeInsets.only(left: 5),
+          child: new Text("${allData[index]?.comment_count} Comment"),
         )
       ],
     ));
@@ -116,8 +286,8 @@ class PageOne extends StatelessWidget {
       children: <Widget>[
         new Icon(Icons.share),
         new Padding(
-          padding: EdgeInsets.only(left: 10),
-          child: new Text("Share"),
+          padding: EdgeInsets.only(left: 5),
+          child: new Text("${allData[index]?.share_id} Share"),
         )
       ],
     ));
@@ -126,56 +296,43 @@ class PageOne extends StatelessWidget {
 
   // ignore: missing_return
   Widget _buildImgItem(int index) {
-    int temp = index % 4;
-    print("当前索引 ：$temp");
-    switch (temp) {
-      case 0:
-        return new Container(
-          width: double.infinity,
-          height: 200,
-          decoration: new BoxDecoration(
-            image: new DecorationImage(
-              image: AssetImage(
-                Utils.getImgPath("test"),
-              ),
-            ),
-          ),
-        );
-        break;
-      case 1:
-        return _buidGridView(2);
-        break;
-      case 2:
-        return _buidGridView(3);
-        break;
-      case 3:
-        return _buidGridView(4);
-        break;
-    }
-  }
-
-  Widget _buidGridView(int index) {
-    return new GridView.count(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10.0,
-      crossAxisCount: index <= 3 ? index : 3,
-      childAspectRatio: 2.0,
-      children: _getWidgetList(index),
-    );
-  }
-
-  List<Widget> _getWidgetList(int index) {
-    List<Widget> imgs = new List();
-    for (int i = 0; i < index; i++) {
-      imgs.add(
-        new Image(
-          image: new AssetImage(
-            Utils.getImgPath("test"),
+    List<ImageModel> allImgs = allData[index]?.images;
+    var length = allImgs?.length;
+    if (length == 1) {
+      return new Container(
+        width: double.infinity,
+        height: 200,
+        decoration: new BoxDecoration(
+          image: new DecorationImage(
+            image: new NetworkImage(allImgs[0]?.url),
           ),
         ),
       );
+    } else if (length == 0) {
+      return new Container();
+    } else {
+      return _buidGridView(allImgs);
     }
-    return imgs;
+  }
+
+  Widget _buidGridView(List<ImageModel> imgs) {
+    return new GridView.builder(
+      shrinkWrap: true,
+      itemCount: imgs.length,
+      padding: EdgeInsets.all(5.0),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        mainAxisSpacing: 5.0,
+        crossAxisSpacing: 5.0,
+        crossAxisCount: imgs.length <= 3 ? imgs.length : 3,
+        childAspectRatio: 1.0,
+      ),
+      physics: NeverScrollableScrollPhysics(),
+      itemBuilder: (context, index) {
+        return new Image(
+          image: new NetworkImage(imgs[index].url),
+          fit: BoxFit.fill,
+        );
+      },
+    );
   }
 }
