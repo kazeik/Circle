@@ -16,12 +16,12 @@ import 'package:fluttertest/utils/Utils.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class TabViewList extends StatefulWidget {
-  final int tabId;
+  int tabId;
 
-  const TabViewList({Key key, this.tabId}) : super(key: key);
+  TabViewList({Key key, this.tabId}) : super(key: key);
 
   @override
-  State<StatefulWidget> createState() => new _TabViewListState();
+  State<TabViewList> createState() =>  _TabViewListState();
 }
 
 class _TabViewListState extends State<TabViewList>
@@ -38,6 +38,7 @@ class _TabViewListState extends State<TabViewList>
 
   @override
   Widget build(BuildContext context) {
+    Utils.logs("当前索引 ${widget.tabId}");
     super.build(context);
     return Scaffold(
       body: SmartRefresher(
@@ -52,8 +53,7 @@ class _TabViewListState extends State<TabViewList>
         onRefresh: _onRefresh,
         onLoading: _onLoading,
         child: new ListView.builder(
-            itemCount: allData == null || allData.isEmpty ? 0 : allData.length,
-            itemBuilder: _buildItemList),
+            itemCount: allData?.length ?? 0, itemBuilder: _buildItemList),
       ),
     );
   }
@@ -69,80 +69,77 @@ class _TabViewListState extends State<TabViewList>
   }
 
   Widget _buildItemList(BuildContext context, int index) {
-    if (allData == null)
-      return new Container();
-    else {
-      return new Container(
-        color: Colors.white,
-        child: new Column(
-          children: <Widget>[
-            new ListTile(
-              leading: new ClipOval(
-                child: new Image(
-                  width: 45,
-                  height: 45,
-                  image: new NetworkImage(allData[index].user?.userpic),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              title: new Text(
-                "${allData[index].user?.realname}",
-                style: new TextStyle(
-                    fontSize: 16,
-                    color: const Color(0xff6f6f6f),
-                    fontWeight: FontWeight.bold),
-              ),
-              subtitle: new Text(
-                "${_getTime(allData[index]?.create_time)}",
-                style: new TextStyle(color: Colors.black38, fontSize: 12),
-              ),
-              trailing: new Container(
-                margin: EdgeInsets.only(left: 10, right: 10),
-                alignment: Alignment.center,
-                height: 25,
-                width: 80,
-                decoration: new BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.all(Radius.circular(14.0)),
-                  border: new Border.all(width: 1, color: Colors.teal),
-                ),
-                child: new Text(
-                  "测试",
-                  style: new TextStyle(color: Colors.white),
-                ),
+    return new Container(
+      color: Colors.white,
+      child: new Column(
+        children: <Widget>[
+          new ListTile(
+            leading: new ClipOval(
+              child: new Image(
+                width: 45,
+                height: 45,
+                image: new NetworkImage(allData[index].user?.userpic),
+                fit: BoxFit.cover,
               ),
             ),
-            new Container(
-              margin: EdgeInsets.all(15),
-              alignment: Alignment.centerLeft,
-              child: new Text("${allData[index]?.content}"),
+            title: new Text(
+              "${allData[index].user?.realname}",
+              style: new TextStyle(
+                  fontSize: 16,
+                  color: const Color(0xff6f6f6f),
+                  fontWeight: FontWeight.bold),
             ),
-            _buildImgItem(index),
-            new Divider(
-              indent: 10,
-              endIndent: 10,
+            subtitle: new Text(
+              "${_getTime(allData[index]?.create_time)}",
+              style: new TextStyle(color: Colors.black38, fontSize: 12),
             ),
-            new Padding(
-              padding: EdgeInsets.only(bottom: 10),
-              child: new Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: _buildRowItem(index),
+            trailing: new Container(
+              margin: EdgeInsets.only(left: 10, right: 10),
+              alignment: Alignment.center,
+              height: 25,
+              width: 80,
+              decoration: new BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.all(Radius.circular(14.0)),
+                border: new Border.all(width: 1, color: Colors.teal),
+              ),
+              child: new Text(
+                "测试",
+                style: new TextStyle(color: Colors.white),
               ),
             ),
-            new Container(
-              height: 15,
-              color: Colors.black12,
-            )
-          ],
-        ),
-      );
-    }
+          ),
+          new Container(
+            margin: EdgeInsets.all(15),
+            alignment: Alignment.centerLeft,
+            child: new Text("${allData[index]?.content}"),
+          ),
+          _buildImgItem(index),
+          new Divider(
+            indent: 10,
+            endIndent: 10,
+          ),
+          new Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: new Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: _buildRowItem(index),
+            ),
+          ),
+          new Container(
+            height: 15,
+            color: Colors.black12,
+          )
+        ],
+      ),
+    );
   }
 
   @override
   void initState() {
-    _getListData();
     super.initState();
+    Utils.logs("当前索1引 ${widget.tabId}");
+    _getListData(clear: true);
   }
 
   List<Widget> _buildRowItem(int index) {
@@ -212,6 +209,8 @@ class _TabViewListState extends State<TabViewList>
       return "${chaf.inMinutes}分钟前";
     } else if (chaf.inSeconds != 0) {
       return "${chaf.inSeconds}刚刚";
+    } else {
+      return "";
     }
   }
 
@@ -237,10 +236,15 @@ class _TabViewListState extends State<TabViewList>
   }
 
   _getListData({bool clear = false}) {
-    HttpNet().request(
-        MethodTypes.GET, "${ApiUtils.getTabs}/${widget.tabId}/post/$_pageIndex",
-        (str) {
-      NewsModel model = NewsModel.fromJson(str);
+    Utils.logs("到了这里");
+    HttpNet()
+        .request(MethodTypes.GET,
+            "${ApiUtils.getTabs}/${widget.tabId}/post/$_pageIndex")
+        .then((value) {
+      if (clear) {
+        allData.clear();
+      }
+      NewsModel model = NewsModel.fromJson(value);
       if (model.data == null ||
           model.data.list == null ||
           model.data.list.isEmpty) {

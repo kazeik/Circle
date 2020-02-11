@@ -5,10 +5,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:fluttertest/model/TabsListItem.dart';
 import 'package:fluttertest/model/TabsModel.dart';
 import 'package:fluttertest/net/HttpNet.dart';
 import 'package:fluttertest/utils/ApiUtils.dart';
 import 'package:fluttertest/utils/MethodTyps.dart';
+import 'package:fluttertest/utils/Utils.dart';
 import 'package:fluttertest/weight/TabViewList.dart';
 
 class PageOne extends StatefulWidget {
@@ -17,10 +19,7 @@ class PageOne extends StatefulWidget {
 
 class _PageOneState extends State<PageOne> with TickerProviderStateMixin {
   TabController _mController;
-  List<Tab> _tabList = new List();
-  TabsModel _model;
-
-  int _tabId;
+  List<TabsListItem> _tabList = new List();
 
   @override
   void initState() {
@@ -36,22 +35,22 @@ class _PageOneState extends State<PageOne> with TickerProviderStateMixin {
   }
 
   _getTabs() {
-    HttpNet().request(MethodTypes.GET, ApiUtils.getTabs, (str) {
-      _model = TabsModel.fromJson(str);
-      _model.data.list.forEach((item) {
-        _tabList.add(new Tab(text: item.classname));
-      });
+    HttpNet().request(MethodTypes.GET, ApiUtils.getTabs).then((value) {
+      TabsModel _model = TabsModel.fromJson(value);
+
       _mController = TabController(
-        initialIndex: 0,
-        length: _tabList.length,
+        length: _model.data.list.length,
         vsync: this,
       );
-      _tabId = _model?.data?.list[0].id;
-      _mController.addListener(() {
-        _tabId = _model?.data?.list[_mController.index].id;
-        _reflashWidget();
+      setState(() {
+        _tabList = _model.data.list;
       });
-      _reflashWidget();
+//      _mController.addListener(() {
+//        Utils.logs("_contentIndex = ${_mController.index}");
+//        setState(() {
+//          _tabId = _model?.data?.list[_mController.index].id;
+//        });
+//      });
     });
   }
 
@@ -77,31 +76,23 @@ class _PageOneState extends State<PageOne> with TickerProviderStateMixin {
             child: _buildTabs(),
           ),
           Expanded(
-            child: _buildView(),
+            child: TabBarView(
+              controller: _mController,
+              children: _tabList.map((TabsListItem item) {
+                Utils.logs("tabId = $item");
+                return TabViewList(
+                  tabId: item.id,
+                );
+              }).toList(),
+            ),
           )
         ],
       ),
     );
   }
 
-  Widget _buildView() {
-    if (_tabList == null || _tabList.isEmpty) {
-      return new Container();
-    } else {
-      return TabBarView(
-        controller: _mController,
-        children: _tabList.map((item) {
-          return TabViewList(
-            tabId: _tabId,
-          );
-        }).toList(),
-      );
-    }
-  }
-
   Widget _buildTabs() {
-    if (_tabList != null && _tabList.isNotEmpty) {
-      return new TabBar(
+    return new TabBar(
         isScrollable: true,
         indicatorWeight: 5.0,
         indicatorSize: TabBarIndicatorSize.label,
@@ -111,19 +102,8 @@ class _PageOneState extends State<PageOne> with TickerProviderStateMixin {
         unselectedLabelColor: Color(0xff9c9c9c),
         tabs: _tabList.map((item) {
           return Tab(
-            text: item.text,
+            text: item.classname,
           );
-        }).toList(),
-        onTap: (index) {
-          _tabId = _model?.data?.list[index].id;
-        },
-      );
-    } else {
-      return new Container();
-    }
-  }
-
-  _reflashWidget() {
-    if (mounted) setState(() {});
+        }).toList());
   }
 }

@@ -64,7 +64,7 @@ class HttpNet {
     }
   }
 
-  request(MethodTypes methodTypes, String path, Function(Map) success,
+  Future<Map> request(MethodTypes methodTypes, String path,
       {HashMap<String, dynamic> params,
       Function(dynamic) errorCallback,
       FormData data,
@@ -74,43 +74,34 @@ class HttpNet {
     CancelToken token = new CancelToken();
     if (headers == null) headers = new HashMap();
     var options = new Options(headers: headers, contentType: contentType);
-    try {
-      Response<String> sValue;
-      if (methodTypes == MethodTypes.GET) {
-        sValue = await _dio.get(path,
-            queryParameters: params, options: options, cancelToken: token);
-      } else if (methodTypes == MethodTypes.POST) {
-        sValue = await _dio.post(path,
-            options: options, data: data, cancelToken: token);
-      } else if (methodTypes == MethodTypes.PUT) {
-        sValue = await _dio.put(path,
-            queryParameters: params,
-            options: options,
-            data: data,
-            cancelToken: token);
-      } else if (methodTypes == MethodTypes.DELETE) {
-        sValue = await _dio.delete(path,
-            queryParameters: params,
-            options: options,
-            data: data,
-            cancelToken: token);
-      }
-      if (sValue != null &&
-          isNotEmpty(sValue.data) &&
-          sValue.data != "null" &&
-          sValue.statusCode == 200) {
-        success(jsonDecode(sValue.data));
-        token.cancel();
-      } else {
-        errorCallback("");
-        Utils.showToast("服务器返回空数据");
-      }
-    } on DioError catch (error) {
-      if (error.type == DioErrorType.CONNECT_TIMEOUT ||
-          error.type == DioErrorType.DEFAULT ||
-          error.type == DioErrorType.RESPONSE) {
-        Utils.showToast("网络连接超时，请重试");
-      } else {}
+    Response<String> sValue;
+    if (methodTypes == MethodTypes.GET) {
+      sValue = await _dio.get(path,
+          queryParameters: params, options: options, cancelToken: token);
+    } else if (methodTypes == MethodTypes.POST) {
+      sValue = await _dio.post(path,
+          options: options, data: data, cancelToken: token);
+    } else if (methodTypes == MethodTypes.PUT) {
+      sValue = await _dio.put(path,
+          queryParameters: params,
+          options: options,
+          data: data,
+          cancelToken: token);
+    } else if (methodTypes == MethodTypes.DELETE) {
+      sValue = await _dio.delete(path,
+          queryParameters: params,
+          options: options,
+          data: data,
+          cancelToken: token);
+    }
+    if (sValue != null &&
+        isNotEmpty(sValue.data) &&
+        sValue.data != "null" &&
+        sValue.statusCode == 200) {
+      token.cancel();
+      return jsonDecode(sValue.data);
+    } else {
+      throw Exception("服务端返回数据错误");
     }
   }
 
