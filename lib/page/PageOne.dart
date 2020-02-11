@@ -60,6 +60,7 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
       allData = new List(_model?.data?.list?.length);
       _mController.addListener(() {
         _tabId = _model?.data?.list[_mController.index].id;
+        _pageIndex = 1;
         _getListData(clear: true);
       });
       _getListData();
