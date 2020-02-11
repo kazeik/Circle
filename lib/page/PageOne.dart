@@ -56,6 +56,10 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
         vsync: this,
       );
       _tabId = _model?.data?.list[0].id;
+      _mController.addListener((){
+        _tabId = _model?.data?.list[_mController.index].id;
+        _getListData(clear: true);
+      });
       _reflashWidget();
       _getListData();
     });
