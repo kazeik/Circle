@@ -27,7 +27,7 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
   int _tabId;
   bool pullUp = true;
 
-  List<NewsListItemModel> allData = new List();
+  List<List<NewsListItemModel>> allData = new List();
 
   RefreshController _refreshController =
       RefreshController(initialRefresh: false);
@@ -52,15 +52,16 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
         _tabList.add(new Tab(text: item.classname));
       });
       _mController = TabController(
+        initialIndex: 0,
         length: _tabList.length,
         vsync: this,
       );
       _tabId = _model?.data?.list[0].id;
-      _mController.addListener((){
+      allData = new List(_model?.data?.list?.length);
+      _mController.addListener(() {
         _tabId = _model?.data?.list[_mController.index].id;
         _getListData(clear: true);
       });
-      _reflashWidget();
       _getListData();
     });
   }
@@ -111,7 +112,11 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
             onRefresh: _onRefresh,
             onLoading: _onLoading,
             child: new ListView.builder(
-                itemCount: allData.length, itemBuilder: _buildItemList),
+                itemCount: allData[_mController.index] == null ||
+                        allData[_mController.index].isEmpty
+                    ? 0
+                    : allData[_mController.index].length,
+                itemBuilder: _buildItemList),
           );
         }).toList(),
       );
@@ -134,16 +139,20 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
     HttpNet().request(
         MethodTypes.GET, "${ApiUtils.getTabs}/$_tabId/post/$_pageIndex", (str) {
       NewsModel model = NewsModel.fromJson(str);
-      if (clear) {
-        allData.clear();
-      }
+//      if (clear) {
+//        allData.clear();
+//      }
+      Utils.logs("当前索引 ： ${_mController.index}");
       if (model.data == null ||
           model.data.list == null ||
           model.data.list.isEmpty) {
         pullUp = false;
         Utils.showToast("没有更多数据了");
       } else {
-        allData.addAll(model.data.list);
+        if (allData[_mController.index] == null) {
+          allData[_mController.index] = new List();
+        }
+        allData[_mController.index].addAll(model.data.list);
       }
       _reflashWidget();
       _refreshController.refreshCompleted();
@@ -183,70 +192,75 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildItemList(BuildContext context, int index) {
-    return new Container(
-      color: Colors.white,
-      child: new Column(
-        children: <Widget>[
-          new ListTile(
-            leading: new ClipOval(
-              child: new Image(
-                width: 45,
-                height: 45,
-                image: new NetworkImage(allData[index].user?.userpic),
-                fit: BoxFit.cover,
+    List<NewsListItemModel> tempModel = allData[_mController.index];
+    if (tempModel == null || tempModel.isEmpty)
+      return new Container();
+    else {
+      return new Container(
+        color: Colors.white,
+        child: new Column(
+          children: <Widget>[
+            new ListTile(
+              leading: new ClipOval(
+                child: new Image(
+                  width: 45,
+                  height: 45,
+                  image: new NetworkImage(tempModel[index].user?.userpic),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              title: new Text(
+                "${tempModel[index].user?.realname}",
+                style: new TextStyle(
+                    fontSize: 16,
+                    color: const Color(0xff6f6f6f),
+                    fontWeight: FontWeight.bold),
+              ),
+              subtitle: new Text(
+                "${_getTime(tempModel[index]?.create_time)}",
+                style: new TextStyle(color: Colors.black38, fontSize: 12),
+              ),
+              trailing: new Container(
+                margin: EdgeInsets.only(left: 10, right: 10),
+                alignment: Alignment.center,
+                height: 25,
+                width: 80,
+                decoration: new BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.all(Radius.circular(14.0)),
+                  border: new Border.all(width: 1, color: Colors.teal),
+                ),
+                child: new Text(
+                  "测试",
+                  style: new TextStyle(color: Colors.white),
+                ),
               ),
             ),
-            title: new Text(
-              "${allData[index].user?.realname}",
-              style: new TextStyle(
-                  fontSize: 16,
-                  color: const Color(0xff6f6f6f),
-                  fontWeight: FontWeight.bold),
+            new Container(
+              margin: EdgeInsets.all(15),
+              alignment: Alignment.centerLeft,
+              child: new Text("${tempModel[index]?.content}"),
             ),
-            subtitle: new Text(
-              "${_getTime(allData[index]?.create_time)}",
-              style: new TextStyle(color: Colors.black38, fontSize: 12),
+            _buildImgItem(index),
+            new Divider(
+              indent: 10,
+              endIndent: 10,
             ),
-            trailing: new Container(
-              margin: EdgeInsets.only(left: 10, right: 10),
-              alignment: Alignment.center,
-              height: 25,
-              width: 80,
-              decoration: new BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.all(Radius.circular(14.0)),
-                border: new Border.all(width: 1, color: Colors.teal),
-              ),
-              child: new Text(
-                "测试",
-                style: new TextStyle(color: Colors.white),
+            new Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: new Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: _buildRowItem(index),
               ),
             ),
-          ),
-          new Container(
-            margin: EdgeInsets.all(15),
-            alignment: Alignment.centerLeft,
-            child: new Text("${allData[index]?.content}"),
-          ),
-          _buildImgItem(index),
-          new Divider(
-            indent: 10,
-            endIndent: 10,
-          ),
-          new Padding(
-            padding: EdgeInsets.only(bottom: 10),
-            child: new Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: _buildRowItem(index),
-            ),
-          ),
-          new Container(
-            height: 15,
-            color: Colors.black12,
-          )
-        ],
-      ),
-    );
+            new Container(
+              height: 15,
+              color: Colors.black12,
+            )
+          ],
+        ),
+      );
+    }
   }
 
   String _getTime(int time) {
@@ -273,7 +287,8 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
         new Icon(Icons.apps),
         new Padding(
           padding: EdgeInsets.only(left: 5),
-          child: new Text("${allData[index]?.ding_count} Like"),
+          child: new Text(
+              "${allData[_mController.index][index]?.ding_count} Like"),
         )
       ],
     ));
@@ -282,7 +297,8 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
         new Icon(Icons.comment),
         new Padding(
           padding: EdgeInsets.only(left: 5),
-          child: new Text("${allData[index]?.comment_count} Comment"),
+          child: new Text(
+              "${allData[_mController.index][index]?.comment_count} Comment"),
         )
       ],
     ));
@@ -291,7 +307,8 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
         new Icon(Icons.share),
         new Padding(
           padding: EdgeInsets.only(left: 5),
-          child: new Text("${allData[index]?.share_id} Share"),
+          child:
+              new Text("${allData[_mController.index][index]?.share_id} Share"),
         )
       ],
     ));
@@ -300,7 +317,7 @@ class _PageOneState extends State<PageOne> with SingleTickerProviderStateMixin {
 
   // ignore: missing_return
   Widget _buildImgItem(int index) {
-    List<ImageModel> allImgs = allData[index]?.images;
+    List<ImageModel> allImgs = allData[_mController.index][index]?.images;
     var length = allImgs?.length;
     if (length == 1) {
       return new Container(
