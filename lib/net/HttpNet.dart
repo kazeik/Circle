@@ -35,19 +35,25 @@ class HttpNet {
     _dio.options.baseUrl = ApiUtils.baseUrl;
     _dio.options.responseType = ResponseType.plain;
     _dio.interceptors.add(LogInterceptor(responseBody: Utils.isDebug)); //开启请求日志
-    _dio.interceptors.add(new InterceptorsWrapper(onRequest: (options) {
-      Utils.logs("-->>  " + options.path);
-      if (!_queryUrl(options.path)) {
-        Utils.loading(Utils.mContext);
-      }
-      return options;
-    }, onError: (options) {
-      _hideLoading(options.request.path);
-      return options;
-    }, onResponse: (options) {
-      _hideLoading(options.request.path);
-      return options;
-    }));
+    _dio.interceptors.add(
+      new InterceptorsWrapper(
+        onRequest: (options) {
+          Utils.logs("-->>  " + options.path);
+          if (!_queryUrl(options.path)) {
+            Utils.loading(Utils.mContext);
+          }
+          return options;
+        },
+        onError: (options) {
+          _hideLoading(options.request.path);
+          return options;
+        },
+        onResponse: (options) {
+          _hideLoading(options.request.path);
+          return options;
+        },
+      ),
+    );
   }
 
   _hideLoading(String path) {
@@ -57,7 +63,7 @@ class HttpNet {
   }
 
   bool _queryUrl(String path) {
-    if (null == Utils.mContext) {
+    if (null == Utils.mContext || path.contains("/post")) {
       return true;
     } else {
       return false;

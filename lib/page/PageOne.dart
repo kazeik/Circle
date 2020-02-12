@@ -10,7 +10,6 @@ import 'package:fluttertest/model/TabsModel.dart';
 import 'package:fluttertest/net/HttpNet.dart';
 import 'package:fluttertest/utils/ApiUtils.dart';
 import 'package:fluttertest/utils/MethodTyps.dart';
-import 'package:fluttertest/utils/Utils.dart';
 import 'package:fluttertest/weight/TabViewList.dart';
 
 class PageOne extends StatefulWidget {
@@ -45,12 +44,6 @@ class _PageOneState extends State<PageOne> with TickerProviderStateMixin {
       setState(() {
         _tabList = _model.data.list;
       });
-//      _mController.addListener(() {
-//        Utils.logs("_contentIndex = ${_mController.index}");
-//        setState(() {
-//          _tabId = _model?.data?.list[_mController.index].id;
-//        });
-//      });
     });
   }
 
@@ -79,7 +72,6 @@ class _PageOneState extends State<PageOne> with TickerProviderStateMixin {
             child: TabBarView(
               controller: _mController,
               children: _tabList.map((TabsListItem item) {
-                Utils.logs("tabId = $item");
                 return TabViewList(
                   tabId: item.id,
                 );

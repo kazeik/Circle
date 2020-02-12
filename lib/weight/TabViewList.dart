@@ -38,7 +38,6 @@ class _TabViewListState extends State<TabViewList>
 
   @override
   Widget build(BuildContext context) {
-    Utils.logs("当前索引 ${widget.tabId}");
     super.build(context);
     return Scaffold(
       body: SmartRefresher(
@@ -138,7 +137,6 @@ class _TabViewListState extends State<TabViewList>
   @override
   void initState() {
     super.initState();
-    Utils.logs("当前索1引 ${widget.tabId}");
     _getListData(clear: true);
   }
 
@@ -236,7 +234,6 @@ class _TabViewListState extends State<TabViewList>
   }
 
   _getListData({bool clear = false}) {
-    Utils.logs("到了这里");
     HttpNet()
         .request(MethodTypes.GET,
             "${ApiUtils.getTabs}/${widget.tabId}/post/$_pageIndex")
