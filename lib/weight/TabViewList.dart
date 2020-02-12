@@ -4,6 +4,7 @@
  * 类说明:
  */
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertest/model/ImageModel.dart';
@@ -21,7 +22,7 @@ class TabViewList extends StatefulWidget {
   TabViewList({Key key, this.tabId}) : super(key: key);
 
   @override
-  State<TabViewList> createState() =>  _TabViewListState();
+  State<TabViewList> createState() => _TabViewListState();
 }
 
 class _TabViewListState extends State<TabViewList>
@@ -77,7 +78,7 @@ class _TabViewListState extends State<TabViewList>
               child: new Image(
                 width: 45,
                 height: 45,
-                image: new NetworkImage(allData[index].user?.userpic),
+                image: new CachedNetworkImageProvider(allData[index].user?.userpic),
                 fit: BoxFit.cover,
               ),
             ),
@@ -177,15 +178,20 @@ class _TabViewListState extends State<TabViewList>
     List<ImageModel> allImgs = allData[index]?.images;
     var length = allImgs?.length;
     if (length == 1) {
-      return new Container(
+      return new CachedNetworkImage(
+        imageUrl: allImgs[0]?.url,
         width: double.infinity,
         height: 200,
-        decoration: new BoxDecoration(
-          image: new DecorationImage(
-            image: new NetworkImage(allImgs[0]?.url),
-          ),
-        ),
       );
+//      return new Container(
+//        width: double.infinity,
+//        height: 200,
+//        decoration: new BoxDecoration(
+//          image: new DecorationImage(
+//            image: new CachedNetworkImage(allImgs[0]?.url),
+//          ),
+//        ),
+//      );
     } else if (length == 0) {
       return new Container();
     } else {
@@ -226,7 +232,7 @@ class _TabViewListState extends State<TabViewList>
       physics: NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         return new Image(
-          image: new NetworkImage(imgs[index].url),
+          image: new CachedNetworkImageProvider(imgs[index].url),
           fit: BoxFit.fill,
         );
       },
@@ -253,7 +259,6 @@ class _TabViewListState extends State<TabViewList>
       }
       _refreshController.refreshCompleted();
       _refreshController.loadComplete();
-
       if (mounted) setState(() {});
     });
   }
